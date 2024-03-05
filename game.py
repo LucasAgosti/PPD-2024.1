@@ -22,6 +22,7 @@ class Game(tk.Tk):
         self.draw_board()
         self.canvas.bind("<Button-1>", self.on_canvas_click)
         self.selected_peg = None
+        self.is_my_turn = True  # Assumindo que este cliente é o jogador 1 inicialmente
 
     def draw_peg(self, row, col, color='black'):
         x0 = col * 50 + 15
@@ -38,6 +39,10 @@ class Game(tk.Tk):
                     self.draw_peg(row, col)
 
     def on_canvas_click(self, event):
+
+        if not self.is_my_turn:
+            print("Não é sua vez!")
+            return
         col = event.x // 50
         row = event.y // 50
         if 0 <= row < 7 and 0 <= col < 7:  # Check if click is within bounds
@@ -74,6 +79,7 @@ class Game(tk.Tk):
             # Enviar detalhes da jogada ao servidor
             move_details = {'action': 'move', 'start_pos': start_pos, 'end_pos': end_pos}
             self.send_data_to_server(move_details)
+        self.is_my_turn = False  # Mudar turno após a movimentação
 
     def check_game_state(self):
         peg_count = sum(row.count(1) for row in self.board)
@@ -95,7 +101,7 @@ class Game(tk.Tk):
                             return True
         return False
 
-    def connect_to_server(self, host='172.20.10.10', port=11112):
+    def connect_to_server(self, host='172.20.10.10', port=11117):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.client_socket.connect((host, port))
@@ -113,6 +119,13 @@ class Game(tk.Tk):
                     if message['action'] == 'move':
                         self.make_move(message['start_pos'], message['end_pos'], update_server=False)
                         self.draw_board()
+                        self.is_my_turn = True  # Agora é sua vez
+                    if message['action'] == 'set_turn':
+                        self.is_my_turn = message['turn']
+                        if self.is_my_turn:
+                            print("É sua vez!")
+                        else:
+                            print("Aguarde sua vez.")
             except Exception as e:
                 print(f"Erro ao receber dados: {e}")
                 break
