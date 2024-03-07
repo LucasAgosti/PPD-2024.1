@@ -8,6 +8,7 @@ class Game(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('Resta 1')
+
         self.board = [
             [-1, -1, 1, 1, 1, -1, -1],
             [-1, -1, 1, 1, 1, -1, -1],
@@ -17,12 +18,29 @@ class Game(tk.Tk):
             [-1, -1, 1, 1, 1, -1, -1],
             [-1, -1, 1, 1, 1, -1, -1]
         ]
-        self.canvas = tk.Canvas(self, width=350, height=350)
-        self.canvas.pack()
+        self.canvas = tk.Canvas(self, width=400, height=400)
+        self.canvas.grid(row=0, column=0, sticky='nsew')
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_rowconfigure(0, weight=1)
         self.draw_board()
         self.canvas.bind("<Button-1>", self.on_canvas_click)
         self.selected_peg = None
         self.is_my_turn = True  # Assumindo que este cliente é o jogador 1 inicialmente
+        self.setup_chat_interface()
+
+        self.give_up_button = tk.Button(self, text="Desistir", command=self.on_give_up)
+        # Escolha row e column de acordo com seu layout atual. Exemplo:
+        self.give_up_button.grid(row=3, column=0, columnspan=4, sticky="nsew")
+
+    def on_give_up(self):
+        # Esta função será chamada quando o botão Desistir for pressionado
+        # Por enquanto, podemos apenas mostrar uma mensagem
+        print("Desistência")
+        # Aqui você adicionará a lógica para enviar a desistência ao servidor quando implementar a funcionalidade
+        # give_up_message = pickle.dumps({"type": "give_up"})
+        # self.client_socket.send(give_up_message
+        give_up_message = {'action': 'give_up'}
+        self.send_data_to_server(give_up_message)
 
     def draw_peg(self, row, col, color='black'):
         x0 = col * 50 + 15
@@ -38,6 +56,33 @@ class Game(tk.Tk):
                 if self.board[row][col] == 1:
                     self.draw_peg(row, col)
 
+    def setup_chat_interface(self):
+        # Área de Texto para Mensagens
+        self.chat_log = tk.Text(self, state='disabled', width=30, height=10)
+        self.chat_log.grid(row=0, column=1, sticky="nsew")
+
+        # Campo de Entrada para Mensagens
+        self.chat_message = tk.Entry(self, width=30)
+        self.chat_message.grid(row=1, column=1, sticky="ew")
+
+        # Botão Enviar
+        send_button = tk.Button(self, text="Enviar", command=self.send_chat_message)
+        send_button.grid(row=2, column=1, sticky="ew")
+
+        # Configurando a coluna para expandir e preencher o espaço disponível
+        self.grid_columnconfigure(1, weight=1)
+
+    def send_chat_message(self):
+        message = self.chat_message.get()
+        if message:  # Certifique-se de que a mensagem não está vazia
+            formatted_message = f"Você: {message}\n"  # Formata a mensagem para exibição
+            self.chat_log.config(state='normal')  # Habilita a edição do chat_log
+            self.chat_log.insert(tk.END, formatted_message)  # Insere a mensagem no chat_log
+            self.chat_log.config(state='disabled')  # Desabilita a edição do chat_log
+            self.chat_log.see(tk.END)  # Scroll para a última mensagem
+            self.chat_message.delete(0, tk.END)  # Limpa o campo de entrada após o envio
+
+            # Aqui você continuaria com a lógica para enviar a mensagem ao servidor
     def on_canvas_click(self, event):
 
         if not self.is_my_turn:
@@ -101,7 +146,7 @@ class Game(tk.Tk):
                             return True
         return False
 
-    def connect_to_server(self, host='172.20.10.10', port=11117):
+    def connect_to_server(self, host='192.168.0.7', port=22222):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self.client_socket.connect((host, port))
@@ -126,6 +171,13 @@ class Game(tk.Tk):
                             print("É sua vez!")
                         else:
                             print("Aguarde sua vez.")
+                    if message['action'] == 'chat':
+                        chat_message = f"{message['sender']}: {message['text']}\n"  # Formata a mensagem recebida
+                        self.chat_log.config(state='normal')
+                        self.chat_log.insert(tk.END, chat_message)
+                        self.chat_log.config(state='disabled')
+                        self.chat_log.see(tk.END)
+
             except Exception as e:
                 print(f"Erro ao receber dados: {e}")
                 break

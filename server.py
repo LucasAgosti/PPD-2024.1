@@ -3,7 +3,7 @@ import threading
 import pickle
 
 class GameServer:
-    def __init__(self, host='172.20.10.10', port=11117):
+    def __init__(self, host='192.168.0.7', port=22222):
         self.clients = []
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.server_socket.bind((host, port))
@@ -45,6 +45,10 @@ class GameServer:
                     # Aqui, trate as mensagens recebidas e possivelmente redirecione-as aos outros clientes
                     # Deserializar os dados recebidos
                     action_data = pickle.loads(data)
+
+                    if action_data['action'] == 'give_up':
+                        (print("venceu"))
+                        break
                     # Imprimir os dados recebidos no terminal do servidor
                     print(f"Ação recebida: {action_data}")
 
