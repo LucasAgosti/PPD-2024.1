@@ -2,7 +2,7 @@ import tkinter as tk
 import tkinter.messagebox as messagebox
 import socket
 import threading
-import pickle  # Para serializar/deserializar objetos para envio através de sockets
+import pickle
 
 class Game(tk.Tk):
     def __init__(self):
@@ -25,22 +25,19 @@ class Game(tk.Tk):
         self.draw_board()
         self.canvas.bind("<Button-1>", self.on_canvas_click)
         self.selected_peg = None
-        self.is_my_turn = True  # Assumindo que este cliente é o jogador 1 inicialmente
+        self.is_my_turn = True
         self.setup_chat_interface()
 
         self.give_up_button = tk.Button(self, text="Desistir", command=self.on_give_up)
-        # Escolha row e column de acordo com seu layout atual. Exemplo:
         self.give_up_button.grid(row=3, column=0, columnspan=4, sticky="nsew")
 
     def on_give_up(self):
-        # Esta função será chamada quando o botão Desistir for pressionado
-        # Por enquanto, podemos apenas mostrar uma mensagem
         print("Desistência")
-        # Aqui você adicionará a lógica para enviar a desistência ao servidor quando implementar a funcionalidade
-        # give_up_message = pickle.dumps({"type": "give_up"})
-        # self.client_socket.send(give_up_message
         give_up_message = {'action': 'give_up'}
         self.send_data_to_server(give_up_message)
+
+        self.is_my_turn = False
+        messagebox.showinfo("Desistência", "Você desistiu. Aguardando o outro jogador.")
 
     def draw_peg(self, row, col, color='black'):
         x0 = col * 50 + 15
@@ -50,39 +47,33 @@ class Game(tk.Tk):
         self.canvas.create_oval(x0, y0, x1, y1, fill=color, tags="peg")
 
     def draw_board(self):
-        self.canvas.delete("peg")  # Remove existing pegs before redrawing
+        self.canvas.delete("peg")
         for row in range(7):
             for col in range(7):
                 if self.board[row][col] == 1:
                     self.draw_peg(row, col)
 
     def setup_chat_interface(self):
-        # Área de Texto para Mensagens
         self.chat_log = tk.Text(self, state='disabled', width=30, height=10)
         self.chat_log.grid(row=0, column=1, sticky="nsew")
 
-        # Campo de Entrada para Mensagens
         self.chat_message = tk.Entry(self, width=30)
         self.chat_message.grid(row=1, column=1, sticky="ew")
 
-        # Botão Enviar
         send_button = tk.Button(self, text="Enviar", command=self.send_chat_message)
         send_button.grid(row=2, column=1, sticky="ew")
 
-        # Configurando a coluna para expandir e preencher o espaço disponível
         self.grid_columnconfigure(1, weight=1)
 
     def send_chat_message(self):
         message = self.chat_message.get()
-        if message:  # Certifique-se de que a mensagem não está vazia
-            formatted_message = f"Você: {message}\n"  # Formata a mensagem para exibição
-            self.chat_log.config(state='normal')  # Habilita a edição do chat_log
-            self.chat_log.insert(tk.END, formatted_message)  # Insere a mensagem no chat_log
-            self.chat_log.config(state='disabled')  # Desabilita a edição do chat_log
-            self.chat_log.see(tk.END)  # Scroll para a última mensagem
-            self.chat_message.delete(0, tk.END)  # Limpa o campo de entrada após o envio
-
-            # Aqui você continuaria com a lógica para enviar a mensagem ao servidor
+        if message:
+            formatted_message = f"Você: {message}\n"
+            self.chat_log.config(state='normal')
+            self.chat_log.insert(tk.END, formatted_message)
+            self.chat_log.config(state='disabled')
+            self.chat_log.see(tk.END)
+            self.chat_message.delete(0, tk.END)
     def on_canvas_click(self, event):
 
         if not self.is_my_turn:
@@ -90,21 +81,20 @@ class Game(tk.Tk):
             return
         col = event.x // 50
         row = event.y // 50
-        if 0 <= row < 7 and 0 <= col < 7:  # Check if click is within bounds
+        if 0 <= row < 7 and 0 <= col < 7:
             if self.selected_peg:
                 if self.is_valid_move(self.selected_peg, (row, col)):
                     self.make_move(self.selected_peg, (row, col))
                     self.draw_board()
-                    if self.check_game_state():  # If game is over, don't reset selected_peg
+                    if self.check_game_state():
                         return
                     self.selected_peg = None
                 else:
-                    self.selected_peg = None  # Deselect if the move is invalid
+                    self.selected_peg = None
             elif self.board[row][col] == 1:
                 self.selected_peg = (row, col)
 
     def is_valid_move(self, start_pos, end_pos):
-        # Check bounds and ensure end position is empty and the start position has a peg
         if (0 <= end_pos[0] < 7 and 0 <= end_pos[1] < 7 and self.board[end_pos[0]][end_pos[1]] == 0 and
                 self.board[start_pos[0]][start_pos[1]] == 1):
             row_diff = end_pos[0] - start_pos[0]
@@ -121,10 +111,9 @@ class Game(tk.Tk):
         self.board[end_pos[0]][end_pos[1]] = 1
         self.board[(start_pos[0] + end_pos[0]) // 2][(start_pos[1] + end_pos[1]) // 2] = 0
         if update_server:
-            # Enviar detalhes da jogada ao servidor
             move_details = {'action': 'move', 'start_pos': start_pos, 'end_pos': end_pos}
             self.send_data_to_server(move_details)
-        self.is_my_turn = False  # Mudar turno após a movimentação
+        self.is_my_turn = False  #Depois de mover a peça, atualizar o turno para o proximo jogador
 
     def check_game_state(self):
         peg_count = sum(row.count(1) for row in self.board)
@@ -140,7 +129,7 @@ class Game(tk.Tk):
         for row in range(7):
             for col in range(7):
                 if self.board[row][col] == 1:
-                    # Check all four possible moves for each peg
+                    #Checagem dos quatro movimentos possíveis das peças
                     for drow, dcol in [(2, 0), (-2, 0), (0, 2), (0, -2)]:
                         if self.is_valid_move((row, col), (row + drow, col + dcol)):
                             return True
@@ -160,11 +149,11 @@ class Game(tk.Tk):
                 data = self.client_socket.recv(4096)
                 if data:
                     message = pickle.loads(data)
-                    # Aqui, trate as mensagens recebidas do servidor
+
                     if message['action'] == 'move':
                         self.make_move(message['start_pos'], message['end_pos'], update_server=False)
                         self.draw_board()
-                        self.is_my_turn = True  # Agora é sua vez
+                        self.is_my_turn = True
                     if message['action'] == 'set_turn':
                         self.is_my_turn = message['turn']
                         if self.is_my_turn:

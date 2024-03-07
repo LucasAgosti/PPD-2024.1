@@ -10,14 +10,6 @@ class GameServer:
         self.server_socket.listen()
         self.current_turn = 0  # 0 para o primeiro jogador, 1 para o segundo
 
-    # def accept_connections(self):
-    #     print("Servidor iniciado, aguardando conexões...")
-    #     while True:
-    #         client, addr = self.server_socket.accept()
-    #         print(f"Conexão recebida de {addr}")
-    #         self.clients.append(client)
-    #         threading.Thread(target=self.handle_client, args=(client,), daemon=True).start()
-
     def accept_connections(self):
         print("Servidor iniciado, aguardando conexões...")
         while True:
@@ -27,13 +19,12 @@ class GameServer:
                 self.clients.append(client)
 
                 if len(self.clients) == 1:
-                    # Indica ao primeiro jogador que é sua vez, esperando pelo segundo jogador
+                    print("Você é o jogador 1")
                     client.send(pickle.dumps({"action": "set_turn", "turn": True}))
                 elif len(self.clients) == 2:
-                    # Inicia as threads de comunicação com cada cliente
+                    print("Você é o jogador 2")
                     for index, client in enumerate(self.clients):
                         threading.Thread(target=self.handle_client, args=(client,), daemon=True).start()
-                        # Comunica o estado inicial do turno para cada jogador
                         turn_message = {"action": "set_turn", "turn": index == 0}
                         client.send(pickle.dumps(turn_message))
 
@@ -42,21 +33,22 @@ class GameServer:
             try:
                 data = client.recv(4096)
                 if data:
-                    # Aqui, trate as mensagens recebidas e possivelmente redirecione-as aos outros clientes
-                    # Deserializar os dados recebidos
                     action_data = pickle.loads(data)
+                    print(f"Ação recebida: {action_data}")
 
                     if action_data['action'] == 'give_up':
                         (print("venceu"))
+                        winner_socket = next(sock for sock in self.clients if sock != client)
+                        winner_message = {'action': 'win'}
+                        winner_socket.send(pickle.dumps(winner_message))
                         break
-                    # Imprimir os dados recebidos no terminal do servidor
-                    print(f"Ação recebida: {action_data}")
-
-                    # Aqui, você pode adicionar lógica adicional para redirecionar a ação aos outros clientes, se necessário.
-                    #pass
+                    elif action_data['action'] == 'chat':
+                        for c in self.clients:
+                            if c != client:
+                                c.send(pickle.dumps(action_data))
 
                     for c in self.clients:
-                        if c != client:  # Não envia a ação de volta para o remetente
+                        if c != client:
                             try:
                                 c.send(pickle.dumps(action_data))
                             except Exception as e:
@@ -71,11 +63,4 @@ class GameServer:
 if __name__ == '__main__':
     server = GameServer()
     server.accept_connections()
-
-
-# if __name__ == "__main__":
-#     #host = '192.168.10.125'
-#     host = '172.20.10.10'
-#     port = 11111
-#     server = GameServer(host, port)
 
